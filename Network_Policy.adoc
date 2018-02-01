@@ -56,7 +56,7 @@ spec:
 EOF
 ----
 
-***Create the rule
+*** Create the rule
 
 ----
 $ oc create -f defaultdeny.yaml -n prod1
