@@ -1,0 +1,241 @@
+== OpenShift Network Policy Plugin Demo
+** Scenario
+Deploy a common two tier application (eg:wordpress) and configure `ingress` policy for `app` and `db` tiers of the application. 
+* **`Deny all Policy:**` Create a `default` policy to `deny` all incming connections to the `prod1` project .
+* **`App tier Policy:**` Allow tcp traffic from all Network
+* **`DB tier Policy:**` Allow `tcp` tarffic only from the `App` tier to mysql listening port `3306`.
+* **`Project wide Policy:**` Allow tcp connection from projects with label status=testing:**` 
+
+** ***Create a Project `prod1`***
+----
+$ oc new-project prod1
+----
+NOTE: By dafult `wordpress` docker image require `root` privilege. Add `anyuid` `scc` to the `default` service account of `prod1`.
+----
+$ oc adm policy add-scc-to-user anyuid -z default
+----
+** Deploy the App tier (wordpress)
+----
+$ oc new-app --name wordpress wordpress -lrole=frontend
+----
+** Deploy the DB tier (mysql)
+----
+$ oc new-app --name db -lrole=db  -e MYSQL_USER=wordpress -e MYSQL_PASSWORD=r3dh4t1! -e MYSQL_DATABASE=wordpress  registry.access.redhat.com/openshift3/mysql-55-rhel7
+
+----
+** Create external `route` for the app tier
+
+----
+$ oc expose svc wordpress
+----
+Display  the `route` url
+
+----
+$ oc get route
+----
+
+*** Verify the URL
+
+Check the accessibility `url` using browser
+
+***Deny all Policy***
+
+** Create `default deny` ingress rule for the project 
+
+*** Create  manifest for `default deny all rule`.
+----
+$ cat<<EOF >> defaultdeny.yaml
+apiVersion: extensions/v1beta1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+EOF
+----
+
+***Create the rule
+
+----
+$ oc create -f defaultdeny.yaml -n prod1
+----
+
+*** Verify the enforcement of the `deny` policy.
+
+Use the `route` to access the `wordpress` from the browser  and check the error message. 
+
+Review the error message in the browser window.
+
+***App tier Policy***
+
+** Allow external access to `APP` tier
+
+*** Create manifest file for the `external access` rule
+
+----
+
+$ cat<<EOF >> apptierpolicy.yaml
+apiVersion: extensions/v1beta1
+kind: NetworkPolicy
+metadata:
+  name: apptier-policy
+spec:
+  podSelector:
+    matchLabels:
+      app: wordpress
+  ingress:
+  - from: []
+    ports:
+    - protocol: TCP
+      port: 80
+EOF
+----
+
+**** Create the external access rule to `APP` tier
+----
+$ oc create -f apptierpolicy.yaml -n prod1
+----
+
+Now try to access `wordpress route` again. The 'url` will display configuration options to install `wordpress`.
+
+
+Selecet the langualte as `english` and continue. 
+
+Provide the following parameters to configure  the `database` connection.
+
+====
+Database Name : wordpress
+
+User Name : wordpress
+
+Password: r3dh4t1!
+
+Database Host : db.prod1.svc.cluster.local
+
+Table Prefix: wp_
+
+====
+
+Review the error message
+
+***APP to DB Policy***
+
+** Creat `app to db` network policy
+
+*** Create the manifest for the `app to db` policy
+
+----
+
+$ cat <<EOF >> apptodbpolicy.yaml
+apiVersion: extensions/v1beta1
+kind: NetworkPolicy
+metadata:
+  name: apptodb-policy
+spec:
+  podSelector:
+    matchLabels:
+      role: db
+  ingress:
+  - ports:
+    - protocol: TCP
+      port: 3306
+    from:
+    - podSelector:
+          matchLabels:
+            app: wordpress
+
+EOF
+----
+
+*** Create the `app to db` policy
+
+----
+$ oc create -f apptodbpolicy.yaml
+----
+
+** Configure Wordpress
+
+Access the `wordpress  url ` (route)  and complete the configuration  using the parameters provided in the previouse step
+
+***NameSpace(Project) wide policy***
+
+** Provision a second `project`.
+
+----
+$ oc new-project  prod2
+----
+
+** Deploy a second instance of MySQL
+----
+$ oc new-app --name mysql-client  -l role=db-client  -e MYSQL_USER=wordpress -e MYSQL_PASSWORD=r3dh4t1! -e MYSQL_DATABASE=wordpress  registry.access.redhat.com/openshift3/mysql-55-rhel7
+
+----
+
+** Craete a policy to access the `db` tier from the projects having lable `status=testing`
+
+
+** Label the nanme `namespace prod2`
+
+
+NOTE: To label  namespace in OpenShift, you may require cluster-admin privilege.
+----
+$ oc label ns prod2 status=testing
+----
+*** Verify the access from mysql client in `prod2` to `db` pod in `prod2`.
+----
+$ oc rsh `oc get po -o name`
+
+
+$ mysql -u wordpress -pr3dh4t1! -h db.prod1.svc.cluster.local
+
+----
+
+** Create the `network policy` to allow access to `db` from namespaces(projects) with label `status=testing`.
+
+*** Create the manifest for the Policy
+
+----
+
+$ cat <<EOF >> ns-policy.yaml
+apiVersion: extensions/v1beta1
+kind: NetworkPolicy
+metadata:
+  name: prodtest-allow
+spec:
+  podSelector:
+    matchLabels:
+      role: db
+  ingress:
+  - ports:
+    - protocol: TCP
+      port: 3306
+    from:
+    - namespaceSelector:
+         matchLabels:
+            status: testing
+EOF
+----
+
+*** Create the project wide policy
+
+----
+$ oc create -f ns-policy.yaml -n prod1
+----
+
+*** Recheck the access
+
+Recheck the access from mysql client in `prod2` to `db` pod in `prod2` after enable the policy.
+
+
+*** Verify the access 
+----
+$ oc rsh `oc get po -o name`
+
+
+$ mysql -u wordpress -pr3dh4t1! -h db.prod1.svc.cluster.local
+
+----
+
+
