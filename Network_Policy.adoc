@@ -1,7 +1,7 @@
 == OpenShift Network Policy Plugin Demo
 ** Scenario
 Deploy a common two tier application (eg:wordpress) and configure `ingress` policy for `app` and `db` tiers of the application. 
-* **`Deny all Policy:**` Create a `default` policy to `deny` all incming connections to the `prod1` project .
+* **`Deny all Policy:**` Create a `default` policy to `deny` all incoming connections to the `prod1` project .
 * **`App tier Policy:**` Allow tcp traffic from all Network
 * **`DB tier Policy:**` Allow `tcp` tarffic only from the `App` tier to mysql listening port `3306`.
 * **`Project wide Policy:**` Allow tcp connection from projects with label status=testing:**` 
