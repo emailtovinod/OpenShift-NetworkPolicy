@@ -176,10 +176,10 @@ $ oc new-app --name mysql-client  -l role=db-client  -e MYSQL_USER=wordpress -e 
 ** Craete a policy to access the `db` tier from the projects having lable `status=testing`
 
 
-** Label the nanme `namespace prod2`
+** Label the`namespace` `prod2`
 
 
-NOTE: To label  namespace in OpenShift, you may require cluster-admin privilege.
+NOTE: To label  namespace in OpenShift, you may need cluster-admin privilege.
 ----
 $ oc label ns prod2 status=testing
 ----
