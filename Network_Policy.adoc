@@ -16,7 +16,7 @@ $ oc adm policy add-scc-to-user anyuid -z default
 ----
 ** Deploy the App tier (wordpress)
 ----
-$ oc new-app --name wordpress wordpress -lapp=wordpress
+$ oc new-app --name wordpress wordpress -lrole=frontend
 ----
 ** Deploy the DB tier (mysql)
 ----
@@ -84,7 +84,7 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      app: wordpress
+      role: frontend
   ingress:
   - from: []
     ports:
@@ -144,7 +144,7 @@ spec:
     from:
     - podSelector:
           matchLabels:
-            app: wordpress
+            role: frontend
 
 EOF
 ----
